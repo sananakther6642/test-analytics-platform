@@ -1,0 +1,48 @@
+# Terraform
+*.tfstate
+*.tfstate.*
+*.tfvars
+!*.tfvars.example
+.terraform/
+.terraform.lock.hcl.bak
+crash.log
+crash.*.log
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Node (frontend vendor tooling only, no build step by design)
+node_modules/
+
+# Env / secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# OS
+.DS_Store
+
+# IDE
+.vscode/
+.idea/
+
+# Playwright
+test-results/
+playwright-report/
+tests/e2e/.cache/
+
+# Local data
+*.db
+*.sqlite3
+/data/
+PLAN.md
