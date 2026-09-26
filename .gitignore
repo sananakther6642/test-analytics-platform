@@ -46,3 +46,4 @@ tests/e2e/.cache/
 *.sqlite3
 /data/
 PLAN.md
+sessions/
