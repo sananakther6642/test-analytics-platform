@@ -54,3 +54,14 @@ import {
   to = module.registry.azurerm_container_registry.this
   id = "/subscriptions/9b574ede-20f2-42b0-ae69-b59312253eab/resourceGroups/rg-tad-manual/providers/Microsoft.ContainerRegistry/registries/tadacr4471"
 }
+
+module "data" {
+  source = "../../modules/data"
+
+  name                = module.naming.postgres
+  resource_group_name = azurerm_resource_group.main.name
+  location            = var.location
+  tags                = local.tags
+  vnet_id             = module.network.vnet_id
+  delegated_subnet_id = module.network.postgres_subnet_id
+}

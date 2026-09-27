@@ -1,0 +1,6 @@
+# AZU-0021: trivy's check only recognizes the deprecated
+# azurerm_postgresql_server resource, not azurerm_postgresql_flexible_server
+# (confirmed by inspecting the cached policy source — it never mentions
+# "flexible"). connection_throttling IS set via
+# azurerm_postgresql_flexible_server_configuration in modules/data/main.tf.
+AZU-0021
