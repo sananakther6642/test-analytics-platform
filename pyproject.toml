@@ -1,0 +1,14 @@
+[project]
+name = "tad-e2e"
+version = "0.1.0"
+description = "Test Analytics Platform — end-to-end tests (Playwright), run against the Docker Compose stack or a deployed environment."
+requires-python = ">=3.12"
+dependencies = [
+    "pytest>=8.3",
+    "pytest-playwright>=0.5",
+]
+# No [build-system]: this is a test suite, never installed or imported as a
+# package elsewhere, so there is nothing to build.
+
+[tool.pytest.ini_options]
+testpaths = ["tests/e2e"]
