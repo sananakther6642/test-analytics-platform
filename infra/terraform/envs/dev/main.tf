@@ -65,3 +65,13 @@ module "data" {
   vnet_id             = module.network.vnet_id
   delegated_subnet_id = module.network.postgres_subnet_id
 }
+
+module "identity" {
+  source = "../../modules/identity"
+
+  name                = module.naming.managed_identity
+  resource_group_name = azurerm_resource_group.main.name
+  location            = var.location
+  tags                = local.tags
+  acr_id              = module.registry.id
+}
