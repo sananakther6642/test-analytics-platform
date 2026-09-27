@@ -64,6 +64,17 @@ resource "azurerm_postgresql_flexible_server" "this" {
   # created with private access, and Terraform can't infer that
   # ordering purely from the private_dns_zone_id reference above.
   depends_on = [azurerm_private_dns_zone_virtual_network_link.postgres]
+
+  lifecycle {
+    # zone is never set here, so Azure picks one automatically at
+    # creation. Once picked, the provider refuses to let plan silently
+    # reconcile it ("`zone` can only be changed when exchanged with the
+    # zone specified in `high_availability.0.standby_availability_zone`")
+    # — since this project has no HA config and doesn't care which zone
+    # it lands in, ignore drift on it entirely rather than pin a
+    # specific zone that adds no real value.
+    ignore_changes = [zone]
+  }
 }
 
 resource "azurerm_postgresql_flexible_server_database" "tad" {
