@@ -9,3 +9,9 @@ variable "resource_suffix" {
   type        = string
   default     = "4471"
 }
+
+variable "postgres_suffix" {
+  description = "Separate suffix for the Postgres server name only. Postgres server names are globally unique across all of Azure, and the manual deployment's pg-tad4471 (rg-tad-manual) still exists during the Phase 3 -> Phase 4 transition — reusing 4471 collides with it (ServerNameAlreadyExists). Every other resource type either gets imported (ACR, no collision) or hasn't been created with the shared suffix yet."
+  type        = string
+  default     = "dev4471"
+}

@@ -11,6 +11,18 @@ module "naming" {
   suffix      = var.resource_suffix
 }
 
+# Separate suffix for Postgres only — see var.postgres_suffix for why
+# (the manual pg-tad4471 still exists and collides on server name,
+# which is globally unique across all of Azure).
+module "naming_postgres" {
+  source = "../../modules/naming"
+
+  project     = "tad"
+  environment = "dev"
+  phase       = "P4"
+  suffix      = var.postgres_suffix
+}
+
 resource "azurerm_resource_group" "main" {
   name     = module.naming.resource_group
   location = var.location
@@ -58,7 +70,7 @@ import {
 module "data" {
   source = "../../modules/data"
 
-  name                = module.naming.postgres
+  name                = module.naming_postgres.postgres
   resource_group_name = azurerm_resource_group.main.name
   location            = var.location
   tags                = local.tags
