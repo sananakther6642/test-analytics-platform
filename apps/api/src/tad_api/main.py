@@ -10,6 +10,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from tad_api.config import settings
 from tad_api.logging import configure_logging
 from tad_api.routers import analytics, health, reports
+from tad_api.storage.blob import AzureBlobStore, NullBlobStore, ReportBlobStore
 
 configure_logging(settings.log_level)
 log = structlog.get_logger()
@@ -35,8 +36,26 @@ async def lifespan(app: FastAPI):
     # once at startup) — PostgresRunStore needs a fresh DB session per
     # request, not one shared instance for the app's whole lifetime, so
     # it's built per-request via the get_run_store dependency instead.
-    log.info("startup", environment=settings.environment)
+    #
+    # blob_store is different: the Azure SDK's async clients are built to
+    # be shared and reused across requests (they pool connections
+    # internally), so unlike RunStore this one lives on app.state and is
+    # constructed once here, not per-request.
+    blob_store: ReportBlobStore
+    if settings.blob_account_url:
+        blob_store = AzureBlobStore(settings.blob_account_url, settings.blob_container)
+    else:
+        blob_store = NullBlobStore()
+    app.state.blob_store = blob_store
+
+    log.info(
+        "startup",
+        environment=settings.environment,
+        blob_configured=settings.blob_account_url is not None,
+    )
     yield
+    if isinstance(blob_store, AzureBlobStore):
+        await blob_store.aclose()
     log.info("shutdown")
 
 
