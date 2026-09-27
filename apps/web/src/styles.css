@@ -1,0 +1,52 @@
+/* Deliberately minimal — the plan explicitly says not to polish this.
+   A working chart and a table is the point, not visual design. */
+
+body {
+  font-family: system-ui, sans-serif;
+  max-width: 900px;
+  margin: 2rem auto;
+  padding: 0 1rem;
+  color: #1a1a1a;
+}
+
+.subtitle {
+  color: #555;
+}
+
+section {
+  margin-bottom: 2rem;
+}
+
+#summary-cards {
+  display: flex;
+  gap: 1rem;
+}
+
+.card {
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  padding: 0.75rem 1rem;
+  display: flex;
+  flex-direction: column;
+}
+
+.card .label {
+  font-size: 0.8rem;
+  color: #666;
+}
+
+.card .value {
+  font-size: 1.5rem;
+  font-weight: 600;
+}
+
+table {
+  border-collapse: collapse;
+  width: 100%;
+}
+
+th, td {
+  text-align: left;
+  padding: 0.4rem 0.6rem;
+  border-bottom: 1px solid #eee;
+}

@@ -1,0 +1,27 @@
+services:
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      TAD_LOG_LEVEL: INFO
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/healthz')"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  web:
+    build:
+      # Scoped to apps/web/, unlike api's repo-root context — web has no
+      # cross-directory dependency (no schemas/ to reach), so the narrower
+      # context is both correct and the honest minimal choice.
+      context: apps/web
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+    depends_on:
+      api:
+        condition: service_healthy

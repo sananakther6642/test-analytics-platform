@@ -2,13 +2,13 @@
 
 import json
 from datetime import datetime
-from pathlib import Path
 
 import jsonschema
 
+from tad_api.config import settings
 from tad_api.parsers.base import ParseError, ParsedRun, ParsedTestResult, ReportParser
 
-_SCHEMA_PATH = Path(__file__).resolve().parents[5] / "schemas" / "trf-v1.schema.json"
+_SCHEMA_PATH = settings.schema_dir / "trf-v1.schema.json"
 _schema = json.loads(_SCHEMA_PATH.read_text())
 
 

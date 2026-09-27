@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Test Analytics Platform</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header>
+    <h1>Test Analytics Platform</h1>
+    <p class="subtitle">Synthetic test-report analytics — upload a TRF v1 file (.json or .csv)</p>
+  </header>
+
+  <main>
+    <section id="upload-section">
+      <h2>Upload a report</h2>
+      <form id="upload-form">
+        <input type="file" id="file-input" accept=".json,.csv" required />
+        <button type="submit">Upload</button>
+      </form>
+      <p id="upload-status" role="status"></p>
+    </section>
+
+    <section id="summary-section">
+      <h2>Summary</h2>
+      <div id="summary-cards"></div>
+    </section>
+
+    <section id="chart-section">
+      <h2>Pass / fail</h2>
+      <canvas id="pass-fail-chart" height="120"></canvas>
+    </section>
+
+    <section id="flaky-section">
+      <h2>Flaky tests</h2>
+      <table id="flaky-table">
+        <thead>
+          <tr>
+            <th>Test</th>
+            <th>Score</th>
+            <th>Same-commit disagreements</th>
+            <th>Flip rate</th>
+            <th>Runs observed</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+      <p id="flaky-empty" hidden>No flaky tests detected yet.</p>
+    </section>
+  </main>
+
+  <script src="vendor/chart.min.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
