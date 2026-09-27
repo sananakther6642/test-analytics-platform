@@ -25,4 +25,17 @@ terraform {
 
 provider "azurerm" {
   features {}
+
+  # The provider defaults to shared-key auth for its OWN reads of
+  # storage account properties (queue/blob/etc), regardless of what
+  # shared_access_key_enabled is set to on the resource itself — this
+  # is what caused "KeyBasedAuthenticationNotPermitted" on every
+  # plan/apply against sttaddev4471 once its keys were disabled, even
+  # for a resource the provider itself created correctly. This flag
+  # tells the provider to authenticate via Azure AD for its own
+  # management calls instead. Documented, known azurerm limitation, not
+  # a workaround specific to this project — see
+  # https://github.com/hashicorp/terraform-provider-azurerm/issues/17341
+  # and HashiCorp's own support article for this exact error.
+  storage_use_azuread = true
 }
