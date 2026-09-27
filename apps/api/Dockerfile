@@ -26,6 +26,8 @@ RUN useradd --uid 1000 --create-home appuser
 WORKDIR /app
 COPY --from=builder /app/.venv /app/.venv
 COPY apps/api/src/ src/
+COPY apps/api/alembic.ini alembic.ini
+COPY apps/api/migrations/ migrations/
 
 # The TRF schema lives at the repo root (schemas/) in local dev, but the
 # container has a different directory layout — config.py's path-walk
