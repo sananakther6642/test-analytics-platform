@@ -6,12 +6,15 @@ restart every replica, turning a recoverable dependency outage into a total
 one. Readiness answers "can this instance serve traffic right now?" and is
 where dependency checks belong.
 
-Phase 1 has no external dependency yet (in-memory store), so readiness is
-trivially always-ready — this file is the seam where Phase 2 plugs in a real
-`await db.execute("SELECT 1")` without touching liveness at all.
+Phase 2 adds the real dependency check here — a Postgres connection — which
+is exactly the seam this file's Phase 1 version was written to leave open.
 """
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy import text
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from tad_api.db.session import get_session
 
 router = APIRouter(tags=["health"])
 
@@ -23,6 +26,12 @@ def liveness() -> dict[str, str]:
 
 
 @router.get("/readyz")
-def readiness() -> dict[str, str]:
-    """Can this instance serve traffic? Checks dependencies (Phase 2+)."""
+async def readiness(session: AsyncSession = Depends(get_session)) -> dict[str, str]:
+    """Can this instance serve traffic? Checks the database is reachable —
+    the one real external dependency this app has as of Phase 2.
+    """
+    try:
+        await session.execute(text("SELECT 1"))
+    except Exception as exc:
+        raise HTTPException(status_code=503, detail="Database not reachable") from exc
     return {"status": "ok"}

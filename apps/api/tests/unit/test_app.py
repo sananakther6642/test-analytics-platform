@@ -9,17 +9,31 @@ from asgi_lifespan import LifespanManager
 from httpx import ASGITransport
 
 from tad_api.main import app
+from tad_api.storage.dependency import get_run_store
+from tad_api.storage.memory import InMemoryRunStore
 
 
 @pytest.fixture
 async def client():
-    # ASGITransport alone never triggers `lifespan`, so app.state.run_store
-    # would never get initialized — LifespanManager runs startup/shutdown
-    # the same way a real ASGI server would.
+    # Override get_run_store so these tests exercise the routers with a
+    # fast, DB-independent InMemoryRunStore rather than needing a real
+    # Postgres connection — the point of these unit tests is proving the
+    # routers/parsers/analytics wiring is correct, which doesn't need a
+    # real database (that's what tests/integration/ is for). A single
+    # shared instance across all requests within one test is fine here,
+    # unlike PostgresRunStore, since InMemoryRunStore holds no per-request
+    # resource that concurrent requests could corrupt.
+    store = InMemoryRunStore()
+    app.dependency_overrides[get_run_store] = lambda: store
+
+    # ASGITransport alone never triggers `lifespan` — LifespanManager runs
+    # startup/shutdown the same way a real ASGI server would.
     async with LifespanManager(app) as manager:
         transport = ASGITransport(app=manager.app)
         async with httpx.AsyncClient(transport=transport, base_url="http://test") as c:
             yield c
+
+    app.dependency_overrides.clear()
 
 
 VALID_RUN = {

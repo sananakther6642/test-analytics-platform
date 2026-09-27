@@ -1,7 +1,7 @@
 import asyncio
 from logging.config import fileConfig
 
-from sqlalchemy import pool
+from sqlalchemy import create_engine, pool
 from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import async_engine_from_config
 
@@ -27,7 +27,16 @@ target_metadata = Base.metadata
 # truth for the DB URL, rather than duplicating it in alembic.ini — one
 # place to change, and it matches how every other setting in this app is
 # configured.
-config.set_main_option("sqlalchemy.url", settings.database_url)
+#
+# IMPORTANT: only when the caller hasn't already set one. Tests
+# (tests/integration/conftest.py) deliberately pass a different URL — a
+# sync driver, to run migrations outside pytest-asyncio's event loop —
+# and unconditionally overwriting it here silently discarded that and
+# broke test isolation from the real app database. Config's ini-file
+# default is the sentinel: if it's still that placeholder-less empty
+# string, nothing else has set it yet.
+if not config.get_main_option("sqlalchemy.url"):
+    config.set_main_option("sqlalchemy.url", settings.database_url)
 
 # other values from the config, defined by the needs of env.py,
 # can be acquired:
@@ -85,9 +94,21 @@ async def run_async_migrations() -> None:
 
 
 def run_migrations_online() -> None:
-    """Run migrations in 'online' mode."""
+    """Run migrations in 'online' mode.
 
-    asyncio.run(run_async_migrations())
+    Branches on driver: a sync URL (e.g. postgresql+psycopg2://, used by
+    the integration-test fixture to avoid asyncio.run() conflicting with
+    pytest-asyncio's already-running event loop) runs synchronously; the
+    app's normal asyncpg URL runs through the async path as before.
+    """
+    url = config.get_main_option("sqlalchemy.url") or ""
+    if "+asyncpg" in url:
+        asyncio.run(run_async_migrations())
+    else:
+        connectable = create_engine(url, poolclass=pool.NullPool)
+        with connectable.connect() as connection:
+            do_run_migrations(connection)
+        connectable.dispose()
 
 
 if context.is_offline_mode():
