@@ -10,7 +10,6 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from tad_api.config import settings
 from tad_api.logging import configure_logging
 from tad_api.routers import analytics, health, reports
-from tad_api.storage.memory import InMemoryRunStore
 
 configure_logging(settings.log_level)
 log = structlog.get_logger()
@@ -32,7 +31,10 @@ class RequestIdMiddleware(BaseHTTPMiddleware):
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    app.state.run_store = InMemoryRunStore()
+    # No app.state.run_store here anymore (Phase 1 had one, constructed
+    # once at startup) — PostgresRunStore needs a fresh DB session per
+    # request, not one shared instance for the app's whole lifetime, so
+    # it's built per-request via the get_run_store dependency instead.
     log.info("startup", environment=settings.environment)
     yield
     log.info("shutdown")

@@ -20,6 +20,7 @@ up and there's a natural point to reference it from).
 
 from collections import defaultdict
 from dataclasses import dataclass
+from itertools import pairwise
 
 # Weight given to same-commit disagreement vs. flip-rate in the combined
 # score. Same-commit is causally sound; flip-rate is a weaker heuristic.
@@ -64,9 +65,7 @@ def _flip_rate(outcomes: list[RunOutcome]) -> float:
     if len(outcomes) < 2:
         return 0.0
     ordered = sorted(outcomes, key=lambda o: o.started_at)
-    flips = sum(
-        1 for prev, curr in zip(ordered, ordered[1:]) if prev.status != curr.status
-    )
+    flips = sum(1 for prev, curr in pairwise(ordered) if prev.status != curr.status)
     return flips / (len(ordered) - 1)
 
 

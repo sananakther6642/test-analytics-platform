@@ -51,3 +51,31 @@ separate index on `git_sha`, both on `test_results` directly.
   that correction would need to cascade to every associated result row —
   not a case this project expects to hit, but worth stating so it isn't
   silently wrong later.
+
+## Addendum: index usage verified, not assumed
+
+Initially, `PostgresRunStore.list()` loaded every run and result into
+Python and let the flakiness/trend logic filter and aggregate there — the
+composite index existed but nothing issued a query shaped to use it.
+`EXPLAIN ANALYZE` on the underlying queries confirmed this: `Seq Scan`, not
+`Index Scan`, at the ~105-run / ~1,890-row corpus this project's synthetic
+generator produces at 90 days.
+
+Rather than leave that gap, `RunStore` gained two purpose-built methods —
+`all_outcomes()` and `daily_counts()` — that query `test_results` directly
+with `ORDER BY (test_id, started_at)` and `GROUP BY DATE(started_at)`
+respectively, giving Postgres a query shape that *can* use the index.
+
+At the real corpus size, the planner still correctly chooses `Seq Scan` —
+1,890 rows is small enough that scanning the whole table is genuinely
+cheaper than an index lookup plus sort, and that is the *correct* planner
+decision, not a sign the index is unused or misconfigured. To verify the
+index is real and does something rather than just existing, the table was
+temporarily expanded to ~40,000 rows (`INSERT ... SELECT ... FROM
+test_results, generate_series(1, 20)`, a synthetic stress multiplier, not
+real data, reverted immediately after) and `EXPLAIN ANALYZE` re-run: the
+plan switched to `Index Scan using ix_test_results_test_id_started_at`.
+
+This is the concrete, measured answer to "does this index actually matter"
+— it does, at a scale this project's own synthetic data doesn't reach
+today, and the query shape is now ready for whenever it does.

@@ -21,8 +21,17 @@ git_sha).
 
 from datetime import datetime
 
-from sqlalchemy import ForeignKey, Index, String
+from sqlalchemy import DateTime, ForeignKey, Index, String
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
+
+# Every timestamp in this schema is timezone-aware (TIMESTAMPTZ), not the
+# SQLAlchemy/Postgres default of naive TIMESTAMP. Test-run timestamps come
+# from real CI systems that can run in any timezone; silently storing them
+# naive was a real bug found in Phase 2 (crashed on the first genuinely
+# timezone-aware datetime — see ADR 0005) — closing it off at the type
+# level means every future write path gets this right by construction,
+# not by remembering to strip/attach timezone info correctly each time.
+_TZ_AWARE = DateTime(timezone=True)
 
 
 class Base(DeclarativeBase):
@@ -47,8 +56,8 @@ class TestRun(Base):
     suite_name: Mapped[str] = mapped_column(String, nullable=False)
     git_sha: Mapped[str] = mapped_column(String, nullable=False, index=True)
     branch: Mapped[str] = mapped_column(String, nullable=False)
-    started_at: Mapped[datetime] = mapped_column(nullable=False)
-    finished_at: Mapped[datetime] = mapped_column(nullable=False)
+    started_at: Mapped[datetime] = mapped_column(_TZ_AWARE, nullable=False)
+    finished_at: Mapped[datetime] = mapped_column(_TZ_AWARE, nullable=False)
     environment: Mapped[str] = mapped_column(String, nullable=False)
 
     results: Mapped[list["TestResult"]] = relationship(back_populates="run")
@@ -77,7 +86,7 @@ class TestResult(Base):
     # a single composite index on this table instead of joining to
     # test_runs every time. The source of truth is still test_runs; these
     # are write-once copies set when a result row is inserted.
-    started_at: Mapped[datetime] = mapped_column(nullable=False)
+    started_at: Mapped[datetime] = mapped_column(_TZ_AWARE, nullable=False)
     git_sha: Mapped[str] = mapped_column(String, nullable=False, index=True)
 
     run: Mapped["TestRun"] = relationship(back_populates="results")

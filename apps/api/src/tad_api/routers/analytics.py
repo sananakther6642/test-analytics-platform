@@ -1,16 +1,18 @@
 """Summary, trend, and flaky-test analytics over uploaded reports."""
 
-from fastapi import APIRouter, Query, Request
+from fastapi import APIRouter, Depends, Query
 
 from tad_api.analytics.flakiness import RunOutcome, find_flaky_tests
-from tad_api.analytics.summary import summarize, trends_by_day
+from tad_api.analytics.summary import summarize
+from tad_api.storage.base import RunStore
+from tad_api.storage.dependency import get_run_store
 
 router = APIRouter(prefix="/api/v1/analytics", tags=["analytics"])
 
 
 @router.get("/summary")
-async def get_summary(request: Request) -> dict:
-    runs = await request.app.state.run_store.list()
+async def get_summary(run_store: RunStore = Depends(get_run_store)) -> dict:
+    runs = await run_store.list()
     s = summarize(runs)
     return {
         "total_runs": s.total_runs,
@@ -25,36 +27,43 @@ async def get_summary(request: Request) -> dict:
 
 @router.get("/trends")
 async def get_trends(
-    request: Request, days: int = Query(default=30, ge=1, le=365)
+    days: int = Query(default=30, ge=1, le=365),
+    run_store: RunStore = Depends(get_run_store),
 ) -> list[dict]:
-    runs = await request.app.state.run_store.list()
-    trends = trends_by_day(runs)[-days:]
+    # daily_counts() aggregates in SQL (GROUP BY DATE(started_at)), not by
+    # loading every run/result into Python — see storage/base.py's
+    # docstring on why this is a separate method from list().
+    counts = (await run_store.daily_counts())[-days:]
     return [
         {
-            "day": t.day.isoformat(),
-            "passed": t.passed,
-            "failed": t.failed,
-            "skipped": t.skipped,
-            "error": t.error,
+            "day": c.day.isoformat(),
+            "passed": c.passed,
+            "failed": c.failed,
+            "skipped": c.skipped,
+            "error": c.error,
         }
-        for t in trends
+        for c in counts
     ]
 
 
 @router.get("/flaky")
 async def get_flaky(
-    request: Request, threshold: float = Query(default=0.1, ge=0.0, le=1.0)
+    threshold: float = Query(default=0.1, ge=0.0, le=1.0),
+    run_store: RunStore = Depends(get_run_store),
 ) -> list[dict]:
-    runs = await request.app.state.run_store.list()
+    # all_outcomes() queries test_results directly, ordered by
+    # (test_id, started_at) — exercises ix_test_results_test_id_started_at
+    # rather than hydrating every full run/test object just to discard most
+    # of each one's fields.
+    raw_outcomes = await run_store.all_outcomes()
     outcomes = [
         RunOutcome(
-            test_id=t.test_id,
-            git_sha=run.git_sha,
-            started_at=run.started_at,
-            status=t.status,
+            test_id=o.test_id,
+            git_sha=o.git_sha,
+            started_at=o.started_at,
+            status=o.status,
         )
-        for run in runs
-        for t in run.tests
+        for o in raw_outcomes
     ]
     results = find_flaky_tests(outcomes, threshold=threshold)
     return [

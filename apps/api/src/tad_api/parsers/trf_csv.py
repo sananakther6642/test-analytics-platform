@@ -15,7 +15,7 @@ import csv
 import io
 from datetime import datetime
 
-from tad_api.parsers.base import ParseError, ParsedRun, ParsedTestResult, ReportParser
+from tad_api.parsers.base import ParsedRun, ParsedTestResult, ParseError, ReportParser
 
 _REQUIRED_COLUMNS = {
     "run_id",
