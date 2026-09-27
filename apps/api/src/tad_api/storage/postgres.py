@@ -5,13 +5,15 @@ routers that call `add`/`get`/`list` don't know or care which one they're
 talking to.
 """
 
-from sqlalchemy import select
+from __future__ import annotations
+
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from tad_api.db.models import TestIdentity, TestResult, TestRun
 from tad_api.parsers.base import ParsedRun, ParsedTestResult
-from tad_api.storage.base import RunStore
+from tad_api.storage.base import DailyCounts, ResultOutcome, RunStore
 
 
 class PostgresRunStore(RunStore):
@@ -73,6 +75,59 @@ class PostgresRunStore(RunStore):
             select(TestRun).options(selectinload(TestRun.results))
         )
         return [self._to_parsed_run(db_run) for db_run in result.scalars()]
+
+    async def all_outcomes(self) -> list[ResultOutcome]:
+        # A single query against test_results only — never touches
+        # test_runs or test_identity, and can use the
+        # ix_test_results_test_id_started_at index for the ordering
+        # flakiness scoring needs (see ADR 0003 for why started_at/git_sha
+        # are denormalized here rather than requiring a join).
+        result = await self._session.execute(
+            select(
+                TestResult.test_id,
+                TestResult.git_sha,
+                TestResult.started_at,
+                TestResult.status,
+            ).order_by(TestResult.test_id, TestResult.started_at)
+        )
+        return [
+            ResultOutcome(
+                test_id=row.test_id,
+                git_sha=row.git_sha,
+                started_at=row.started_at,
+                status=row.status,
+            )
+            for row in result.all()
+        ]
+
+    async def daily_counts(self) -> list[DailyCounts]:
+        # GROUP BY DATE(started_at) does the day-bucketing in Postgres
+        # rather than loading every result into Python to bucket by hand —
+        # the same query shape trends_by_day() in analytics/summary.py
+        # does in-process for the in-memory store, now pushed down to SQL.
+        day = func.date(TestResult.started_at)
+        status_count = func.count().filter
+        result = await self._session.execute(
+            select(
+                day.label("day"),
+                status_count(TestResult.status == "passed").label("passed"),
+                status_count(TestResult.status == "failed").label("failed"),
+                status_count(TestResult.status == "skipped").label("skipped"),
+                status_count(TestResult.status == "error").label("error"),
+            )
+            .group_by(day)
+            .order_by(day)
+        )
+        return [
+            DailyCounts(
+                day=row.day,
+                passed=row.passed,
+                failed=row.failed,
+                skipped=row.skipped,
+                error=row.error,
+            )
+            for row in result.all()
+        ]
 
     @staticmethod
     def _to_parsed_run(db_run: TestRun) -> ParsedRun:

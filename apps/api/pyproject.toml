@@ -30,6 +30,26 @@ dev = [
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 
+[tool.ruff.lint]
+# B008 (function call in argument default) is a real footgun in general
+# Python, but FastAPI's Depends(...) in a parameter default is the
+# framework's own idiomatic dependency-injection syntax — it's how
+# get_run_store/get_session are wired throughout this app (routers/,
+# storage/dependency.py). Excluding it here rather than silencing each
+# call site individually.
+ignore = ["B008"]
+
+[tool.ruff.lint.per-file-ignores]
+# Alembic generates these with `from typing import Sequence, Union` and no
+# module docstring convention of its own; not worth hand-editing generated
+# migration files just to satisfy modern-typing-syntax lint rules.
+"migrations/versions/*.py" = ["UP035", "UP007", "I001"]
+"migrations/env.py" = ["I001", "RUF100"]
+# Pure in-memory algorithm test — never touches Postgres, so timezone
+# correctness genuinely doesn't matter here (only relative ordering does).
+# See tests/integration/ for the tests where it does and is enforced.
+"tests/unit/test_flakiness.py" = ["DTZ001"]
+
 [build-system]
 requires = ["uv_build>=0.12.18,<0.13.0"]
 build-backend = "uv_build"

@@ -8,7 +8,7 @@ that doesn't actually match the ORM models — all real bug classes a mock
 can't see.
 """
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
 from sqlalchemy import text
@@ -27,8 +27,8 @@ def _run(run_id: str, git_sha: str = "abc1234") -> ParsedRun:
         # Timezone-aware: the schema is TIMESTAMPTZ (see ADR 0005 / migration
         # d03862a437ec). A naive datetime here would have masked the exact
         # bug that migration fixes.
-        started_at=datetime(2026, 1, 1, 0, 0, 0, tzinfo=timezone.utc),
-        finished_at=datetime(2026, 1, 1, 0, 5, 0, tzinfo=timezone.utc),
+        started_at=datetime(2026, 1, 1, 0, 0, 0, tzinfo=UTC),
+        finished_at=datetime(2026, 1, 1, 0, 5, 0, tzinfo=UTC),
         environment="ci",
         tests=[
             ParsedTestResult(

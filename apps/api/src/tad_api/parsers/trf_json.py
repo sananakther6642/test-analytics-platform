@@ -6,7 +6,7 @@ from datetime import datetime
 import jsonschema
 
 from tad_api.config import settings
-from tad_api.parsers.base import ParseError, ParsedRun, ParsedTestResult, ReportParser
+from tad_api.parsers.base import ParsedRun, ParsedTestResult, ParseError, ReportParser
 
 _SCHEMA_PATH = settings.schema_dir / "trf-v1.schema.json"
 _schema = json.loads(_SCHEMA_PATH.read_text())
