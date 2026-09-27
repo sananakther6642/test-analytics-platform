@@ -59,6 +59,15 @@ class Settings(BaseSettings):
     blob_account_url: str | None = None
     blob_container: str = "reports"
 
+    # DefaultAzureCredential needs this explicitly for a user-assigned
+    # identity (see storage/blob.py's AzureBlobStore docstring) — without
+    # it, it only tries system-assigned identity and fails outright on
+    # this project's user-assigned-only setup. Azure Container Apps does
+    # NOT auto-inject the attached identity's client ID as an env var
+    # (verified: a running container only had the vars this app set
+    # itself) — it must be set by hand as TAD_MANAGED_IDENTITY_CLIENT_ID.
+    managed_identity_client_id: str | None = None
+
     @field_validator("schema_dir", mode="before")
     @classmethod
     def _default_schema_dir(cls, value: Path | str | None) -> Path | str:

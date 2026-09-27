@@ -43,7 +43,11 @@ async def lifespan(app: FastAPI):
     # constructed once here, not per-request.
     blob_store: ReportBlobStore
     if settings.blob_account_url:
-        blob_store = AzureBlobStore(settings.blob_account_url, settings.blob_container)
+        blob_store = AzureBlobStore(
+            settings.blob_account_url,
+            settings.blob_container,
+            settings.managed_identity_client_id,
+        )
     else:
         blob_store = NullBlobStore()
     app.state.blob_store = blob_store

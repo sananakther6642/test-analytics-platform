@@ -39,17 +39,25 @@ class AzureBlobStore(ReportBlobStore):
 
     Uses DefaultAzureCredential rather than a connection string or account
     key — this is the same zero-secrets pattern as Key Vault access and
-    ACR pull (D3.3). DefaultAzureCredential picks up the container's
-    user-assigned managed identity automatically in Azure; locally it
-    would fall back to `az login` credentials, but this class is never
-    constructed locally since blob_account_url is unset there.
+    ACR pull (D3.3).
+
+    DefaultAzureCredential does NOT automatically pick a user-assigned
+    identity when a container has more than one identity or the one it
+    has isn't system-assigned — with no client ID it only tries
+    system-assigned managed identity and fails with "Unable to load the
+    proper Managed Identity" on this project's user-assigned-only setup
+    (see ADR 0008 for why user-assigned was deliberately chosen over
+    system-assigned). managed_identity_client_id must be passed
+    explicitly.
 
     One blob per run, named "{run_id}.raw" — the parser already
     determined the format when producing the ParsedRun, so no extension
     is needed to know how to re-parse it later.
     """
 
-    def __init__(self, account_url: str, container: str) -> None:
+    def __init__(
+        self, account_url: str, container: str, managed_identity_client_id: str | None
+    ) -> None:
         # Imported here, not at module level: azure-storage-blob and
         # azure-identity are real dependencies only this class needs.
         # NullBlobStore (the default everywhere else) has no SDK import,
@@ -57,7 +65,9 @@ class AzureBlobStore(ReportBlobStore):
         from azure.identity.aio import DefaultAzureCredential
         from azure.storage.blob.aio import ContainerClient
 
-        self._credential = DefaultAzureCredential()
+        self._credential = DefaultAzureCredential(
+            managed_identity_client_id=managed_identity_client_id
+        )
         self._container = ContainerClient(
             account_url=account_url,
             container_name=container,
