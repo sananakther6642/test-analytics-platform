@@ -5,14 +5,17 @@ from fastapi import APIRouter, Depends, HTTPException, UploadFile
 from tad_api.parsers.base import ParseError
 from tad_api.parsers.registry import get_parser
 from tad_api.storage.base import RunStore
-from tad_api.storage.dependency import get_run_store
+from tad_api.storage.blob import ReportBlobStore
+from tad_api.storage.dependency import get_blob_store, get_run_store
 
 router = APIRouter(prefix="/api/v1/reports", tags=["reports"])
 
 
 @router.post("")
 async def upload_report(
-    file: UploadFile, run_store: RunStore = Depends(get_run_store)
+    file: UploadFile,
+    run_store: RunStore = Depends(get_run_store),
+    blob_store: ReportBlobStore = Depends(get_blob_store),
 ) -> dict:
     raw = await file.read()
     parser = get_parser(file.filename or "", file.content_type)
@@ -22,7 +25,14 @@ async def upload_report(
     except ParseError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
 
+    # Blob save happens after a successful parse, not before: an
+    # unparseable upload shouldn't leave an orphaned blob with no
+    # corresponding run_id anyone can look up. Parsed-data storage
+    # (Postgres) is still the source of truth for whether an upload
+    # "succeeded" — the raw blob is retained evidence, not required for
+    # the API to function if it's ever briefly unavailable.
     await run_store.add(run)
+    await blob_store.save(run.run_id, raw)
     return {"run_id": run.run_id, "test_count": len(run.tests)}
 
 

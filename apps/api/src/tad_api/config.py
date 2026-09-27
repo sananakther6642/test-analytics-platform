@@ -50,8 +50,23 @@ class Settings(BaseSettings):
     schema_dir: Path | None = None
     database_url: str = _DEFAULT_DATABASE_URL
 
-    # Phase 3 adds blob storage config. Not declared yet — YAGNI until the
-    # phase that actually needs it.
+    # None (the default) means "no Blob configured" — NullBlobStore is
+    # used and raw uploads simply aren't retained. Local Compose dev and
+    # unit tests never set this. Only the account URL is configured, not
+    # a connection string or key: auth is via managed identity
+    # (DefaultAzureCredential), matching D3.3's zero-secrets-for-Blob
+    # design — see storage/blob.py.
+    blob_account_url: str | None = None
+    blob_container: str = "reports"
+
+    # DefaultAzureCredential needs this explicitly for a user-assigned
+    # identity (see storage/blob.py's AzureBlobStore docstring) — without
+    # it, it only tries system-assigned identity and fails outright on
+    # this project's user-assigned-only setup. Azure Container Apps does
+    # NOT auto-inject the attached identity's client ID as an env var
+    # (verified: a running container only had the vars this app set
+    # itself) — it must be set by hand as TAD_MANAGED_IDENTITY_CLIENT_ID.
+    managed_identity_client_id: str | None = None
 
     @field_validator("schema_dir", mode="before")
     @classmethod
