@@ -1,4 +1,28 @@
 services:
+  postgres:
+    # Pinned to a specific patch version, not the floating :16-alpine tag —
+    # :16-alpine was found broken (exec format error on its entrypoint
+    # script, isolated to this exact tag after extensive testing: plain
+    # alpine, nginx:1.27-alpine, postgres:16, and postgres:16.4-alpine all
+    # work correctly). Floating tags can be republished with a bad build;
+    # pinning avoids depending on whatever :16-alpine happens to resolve to
+    # today, which is the same reproducibility argument behind every other
+    # version pin in this project (.tool-versions, uv.lock, etc.).
+    image: postgres:16.4-alpine
+    environment:
+      POSTGRES_USER: tad
+      POSTGRES_PASSWORD: tad_dev_only
+      POSTGRES_DB: tad
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U tad -d tad"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+
   api:
     build:
       context: .
@@ -7,6 +31,10 @@ services:
       - "8000:8000"
     environment:
       TAD_LOG_LEVEL: INFO
+      TAD_DATABASE_URL: postgresql+asyncpg://tad:tad_dev_only@postgres:5432/tad
+    depends_on:
+      postgres:
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/healthz')"]
       interval: 5s
@@ -25,3 +53,6 @@ services:
     depends_on:
       api:
         condition: service_healthy
+
+volumes:
+  pg_data:

@@ -33,15 +33,25 @@ def _find_repo_root_schema_dir() -> Path:
     )
 
 
+# Local-dev-only default, matching schema_dir's pattern: Docker/CI always
+# set TAD_DATABASE_URL explicitly (the Dockerfile does; so does CI), so
+# this default only ever applies to bare `uv run` on a laptop. Kept as a
+# default (not made strictly required) so unit tests that exercise the
+# parsers/flakiness algorithm — which never touch a database — don't need
+# Postgres running just to construct Settings.
+_DEFAULT_DATABASE_URL = "postgresql+asyncpg://tad:tad_dev_only@localhost:5432/tad"
+
+
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="TAD_", env_file=".env")
 
     environment: str = "local"
     log_level: str = "INFO"
     schema_dir: Path | None = None
+    database_url: str = _DEFAULT_DATABASE_URL
 
-    # Phase 2 adds a real database_url. Phase 3 adds blob storage config.
-    # Not declared yet — YAGNI until the phase that actually needs them.
+    # Phase 3 adds blob storage config. Not declared yet — YAGNI until the
+    # phase that actually needs it.
 
     @field_validator("schema_dir", mode="before")
     @classmethod

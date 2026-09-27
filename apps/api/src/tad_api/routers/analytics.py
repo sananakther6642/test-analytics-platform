@@ -9,8 +9,8 @@ router = APIRouter(prefix="/api/v1/analytics", tags=["analytics"])
 
 
 @router.get("/summary")
-def get_summary(request: Request) -> dict:
-    runs = request.app.state.run_store.list()
+async def get_summary(request: Request) -> dict:
+    runs = await request.app.state.run_store.list()
     s = summarize(runs)
     return {
         "total_runs": s.total_runs,
@@ -24,10 +24,10 @@ def get_summary(request: Request) -> dict:
 
 
 @router.get("/trends")
-def get_trends(
+async def get_trends(
     request: Request, days: int = Query(default=30, ge=1, le=365)
 ) -> list[dict]:
-    runs = request.app.state.run_store.list()
+    runs = await request.app.state.run_store.list()
     trends = trends_by_day(runs)[-days:]
     return [
         {
@@ -42,10 +42,10 @@ def get_trends(
 
 
 @router.get("/flaky")
-def get_flaky(
+async def get_flaky(
     request: Request, threshold: float = Query(default=0.1, ge=0.0, le=1.0)
 ) -> list[dict]:
-    runs = request.app.state.run_store.list()
+    runs = await request.app.state.run_store.list()
     outcomes = [
         RunOutcome(
             test_id=t.test_id,

@@ -18,21 +18,21 @@ async def upload_report(request: Request, file: UploadFile) -> dict:
     except ParseError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
 
-    request.app.state.run_store.add(run)
+    await request.app.state.run_store.add(run)
     return {"run_id": run.run_id, "test_count": len(run.tests)}
 
 
 @router.get("")
-def list_reports(request: Request) -> list[dict]:
+async def list_reports(request: Request) -> list[dict]:
     return [
         {"run_id": r.run_id, "suite_name": r.suite_name, "started_at": r.started_at}
-        for r in request.app.state.run_store.list()
+        for r in await request.app.state.run_store.list()
     ]
 
 
 @router.get("/{run_id}")
-def get_report(request: Request, run_id: str) -> dict:
-    run = request.app.state.run_store.get(run_id)
+async def get_report(request: Request, run_id: str) -> dict:
+    run = await request.app.state.run_store.get(run_id)
     if run is None:
         raise HTTPException(status_code=404, detail=f"No report with run_id '{run_id}'")
     return {
