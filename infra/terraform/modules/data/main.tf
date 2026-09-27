@@ -73,30 +73,16 @@ resource "azurerm_postgresql_flexible_server_database" "tad" {
   collation = "en_US.utf8"
 }
 
-# Audit-log parameters trivy flags as missing by default (AZU-0019,
-# AZU-0021, AZU-0024) — genuinely worth having for real incident
-# diagnosis, not just to pass the scan, and free (log volume on a dev
-# database is tiny).
-resource "azurerm_postgresql_flexible_server_configuration" "log_connections" {
-  name      = "log_connections"
-  server_id = azurerm_postgresql_flexible_server.this.id
-  value     = "on"
-}
-
-resource "azurerm_postgresql_flexible_server_configuration" "log_disconnections" {
-  name      = "log_disconnections"
-  server_id = azurerm_postgresql_flexible_server.this.id
-  value     = "on"
-}
-
-resource "azurerm_postgresql_flexible_server_configuration" "log_checkpoints" {
-  name      = "log_checkpoints"
-  server_id = azurerm_postgresql_flexible_server.this.id
-  value     = "on"
-}
-
-resource "azurerm_postgresql_flexible_server_configuration" "connection_throttling" {
-  name      = "connection_throttling"
-  server_id = azurerm_postgresql_flexible_server.this.id
-  value     = "on"
-}
+# trivy flags AZU-0019/0021/0024 (log_connections, connection_throttling,
+# log_checkpoints not explicitly configured). No azurerm_postgresql_
+# flexible_server_configuration resources here for any of them:
+# checked the real server's actual parameter defaults via
+# `az postgres flexible-server parameter list` — log_connections,
+# log_disconnections, and log_checkpoints all already default to "on" on
+# PostgreSQL 16 Flexible Server, so a resource setting them to "on"
+# would be a no-op that exists purely to satisfy a scanner. And
+# connection_throttling isn't a real parameter on this resource/version
+# at all (confirmed via a real ParameterNotExists apply error) — trivy's
+# check also only recognizes the deprecated azurerm_postgresql_server
+# resource type, never azurerm_postgresql_flexible_server (confirmed by
+# reading the cached policy source). See .trivyignore for AZU-0021.

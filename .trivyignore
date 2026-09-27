@@ -1,6 +1,15 @@
-# AZU-0021: trivy's check only recognizes the deprecated
-# azurerm_postgresql_server resource, not azurerm_postgresql_flexible_server
-# (confirmed by inspecting the cached policy source — it never mentions
-# "flexible"). connection_throttling IS set via
-# azurerm_postgresql_flexible_server_configuration in modules/data/main.tf.
+# AZU-0019, AZU-0021, AZU-0024: all three check for
+# log_connections/connection_throttling/log_checkpoints server
+# parameters, and all three only recognize the deprecated
+# azurerm_postgresql_server resource, not
+# azurerm_postgresql_flexible_server (confirmed by inspecting the cached
+# policy source — none mention "flexible"). Verified against the real
+# server's actual parameters (`az postgres flexible-server parameter
+# list`): log_connections and log_checkpoints already default to "on" on
+# PostgreSQL 16 Flexible Server (a Terraform resource setting them to
+# "on" would be a no-op), and connection_throttling isn't a valid
+# parameter on this resource/version at all (confirmed via a real
+# ParameterNotExists apply error, not just theory).
+AZU-0019
 AZU-0021
+AZU-0024
