@@ -112,3 +112,20 @@ module "identity" {
   storage_account_id  = module.storage.id
   key_vault_id        = module.key_vault.id
 }
+
+module "containerapp" {
+  source = "../../modules/containerapp"
+
+  name_prefix              = "tad"
+  resource_group_name      = azurerm_resource_group.main.name
+  location                 = var.location
+  tags                     = local.tags
+  infrastructure_subnet_id = module.network.container_apps_subnet_id
+  identity_id              = module.identity.id
+  identity_client_id       = module.identity.client_id
+  acr_login_server         = module.registry.login_server
+  api_image                = "${module.registry.login_server}/tad-api:0.1.0"
+  web_image                = "${module.registry.login_server}/tad-web:0.1.0"
+  database_url_secret_id   = module.key_vault.database_url_secret_id
+  blob_account_url         = module.storage.account_url
+}
