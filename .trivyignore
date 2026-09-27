@@ -13,3 +13,44 @@
 AZU-0019
 AZU-0021
 AZU-0024
+
+# AZU-0013 (Key Vault network ACL default-deny) and AZU-0012 (storage
+# account network default-deny): both would block Terraform's own
+# apply (running from a laptop, no fixed egress IP) and the app's
+# runtime access to Blob (Container Apps isn't VNet-integrated for
+# Blob/Key Vault egress). RBAC is this project's actual access-control
+# layer for both resources, per D3.3 — reasoning documented at each
+# resource in modules/key_vault/main.tf and modules/storage/main.tf.
+AZU-0012
+AZU-0013
+
+# AZU-0058 (storage GRS): explicitly rejected in Phase 3 — not covered
+# by the free grant, costs more, for a dev environment with disposable
+# data.
+AZU-0058
+
+# AZU-0060, AZU-0061 (storage customer-managed keys, infrastructure/
+# double encryption): enterprise-grade controls with no real threat
+# model at this project's scale — Microsoft-managed keys are the
+# correct default here.
+AZU-0060
+AZU-0061
+
+# AZU-0057 (storage account logging): genuinely worth having, deferred
+# to Phase 8 (observability) — needs a Log Analytics workspace as a
+# diagnostic-setting destination, which doesn't exist yet in Phase 4.
+AZU-0057
+
+# AZU-0016 (Key Vault purge protection): deliberately off — this is a
+# teardown-heavy dev project (Phase 4's whole point is destroy/apply
+# cycles), and purge protection would block recreating a same-named
+# vault for 90 days after a destroy. Documented at the resource in
+# modules/key_vault/main.tf.
+AZU-0016
+
+# AZU-0017 (secret expiry date): the database_url secret is regenerated
+# on every terraform apply/destroy cycle in this dev project — an
+# expiry date adds a real failure mode (secret becomes unusable
+# mid-project if forgotten) with no meaningful security benefit at this
+# threat model.
+AZU-0017

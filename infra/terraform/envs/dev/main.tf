@@ -78,6 +78,29 @@ module "data" {
   delegated_subnet_id = module.network.postgres_subnet_id
 }
 
+# sttad4471 (manual) still exists — storage account names are globally
+# unique, same collision class as Postgres, so this reuses
+# naming_postgres's "dev4471" suffix rather than adding a third naming
+# module instance for one more exception.
+module "storage" {
+  source = "../../modules/storage"
+
+  name                = module.naming_postgres.storage_account
+  resource_group_name = azurerm_resource_group.main.name
+  location            = var.location
+  tags                = local.tags
+}
+
+module "key_vault" {
+  source = "../../modules/key_vault"
+
+  name                = module.naming_postgres.key_vault
+  resource_group_name = azurerm_resource_group.main.name
+  location            = var.location
+  tags                = local.tags
+  database_url        = module.data.connection_string
+}
+
 module "identity" {
   source = "../../modules/identity"
 
@@ -86,4 +109,6 @@ module "identity" {
   location            = var.location
   tags                = local.tags
   acr_id              = module.registry.id
+  storage_account_id  = module.storage.id
+  key_vault_id        = module.key_vault.id
 }

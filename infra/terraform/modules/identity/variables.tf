@@ -18,3 +18,13 @@ variable "acr_id" {
   description = "Scopes the AcrPull role assignment."
   type        = string
 }
+
+variable "storage_account_id" {
+  description = "Scopes the Storage Blob Data Contributor role assignment."
+  type        = string
+}
+
+variable "key_vault_id" {
+  description = "Scopes the Key Vault Secrets User role assignment."
+  type        = string
+}
