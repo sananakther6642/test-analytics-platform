@@ -38,33 +38,22 @@ module "network" {
   tags                = local.tags
 }
 
-# The ACR stays in rg-tad-manual, not rg-tad-dev — Azure's provider has
-# no in-place resource-group move for azurerm_container_registry;
-# changing resource_group_name forces a destroy+recreate, which would
-# delete the real images this import exists specifically to avoid
-# re-pushing. Referenced via a data source since rg-tad-manual is not
-# Terraform-managed.
-data "azurerm_resource_group" "manual" {
-  name = "rg-tad-manual"
-}
-
+# Originally imported from rg-tad-manual (the manual Phase 3
+# deployment) to preserve its real images without re-pushing — see git
+# history for that design. rg-tad-manual (and the ACR along with it) was
+# deleted by mistake before this Terraform stack's own end-to-end
+# verification made that resource group's original contents fully
+# redundant, so a fresh ACR is created natively here instead: same name
+# (still available), same settings, now genuinely Terraform-native with
+# no cross-resource-group reference. Images are re-pushed once, since
+# there's no way to recover the deleted ones.
 module "registry" {
   source = "../../modules/registry"
 
   name                = module.naming.acr
-  resource_group_name = data.azurerm_resource_group.manual.name
-  # var.location (Sweden Central), not the resource group's own
-  # metadata location — rg-tad-manual's metadata region is West Europe
-  # (see ADR 0007), but the ACR itself was deployed to Sweden Central.
-  # A resource group's location and the region its resources actually
-  # live in are two different things.
-  location = var.location
-  tags     = local.tags
-}
-
-import {
-  to = module.registry.azurerm_container_registry.this
-  id = "/subscriptions/9b574ede-20f2-42b0-ae69-b59312253eab/resourceGroups/rg-tad-manual/providers/Microsoft.ContainerRegistry/registries/tadacr4471"
+  resource_group_name = azurerm_resource_group.main.name
+  location            = var.location
+  tags                = local.tags
 }
 
 module "data" {
