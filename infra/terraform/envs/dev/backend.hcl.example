@@ -1,0 +1,15 @@
+# Copy this to backend.hcl (gitignored) with the real storage account name
+# from running infra/terraform/bootstrap/bootstrap-tfstate.sh, then run:
+#
+#   terraform init -backend-config=backend.hcl
+#
+# Not committed as backend.hcl directly because the storage account name
+# has a random suffix baked in at bootstrap time and is specific to
+# whoever ran the bootstrap script — it's not a secret, just
+# environment-specific, same reasoning as .env.example.
+
+resource_group_name  = "rg-tad-tfstate"
+storage_account_name = "REPLACE_WITH_REAL_NAME"
+container_name        = "tfstate"
+key                   = "dev.terraform.tfstate"
+use_azuread_auth      = true
