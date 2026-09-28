@@ -1,9 +1,9 @@
 # Architecture
 
-> Status: Phase 3 live. The Azure deployment below is running and
-> verified end-to-end — it will be replaced by Terraform-managed
-> infrastructure in Phase 4, then AKS/Helm/observability/GitOps in later
-> phases.
+> Status: Phase 4 live. Every resource is now Terraform-managed, in one
+> resource group (`rg-tad-dev`), verified end-to-end including a timed
+> destroy/rebuild cycle. Phase 3's manual deployment (`rg-tad-manual`) is
+> fully retired. Next: AKS/Helm/observability/GitOps in later phases.
 
 ## Local (Phases 1-2)
 
@@ -17,7 +17,7 @@
 Docker Compose, all three services on one bridge network. See
 `docker-compose.yml`.
 
-## Azure — Phase 3 (manual/portal-driven, live)
+## Azure — Phase 4 (Terraform-managed, live)
 
 ```
                               Internet
@@ -32,40 +32,57 @@ Docker Compose, all three services on one bridge network. See
                     ┌─────────────────────────┐
                     │  ca-tad-api (internal)   │
                     │  FastAPI/uvicorn :8000   │
-                    └──┬───────────┬───────────┘
-                       │           │
-            TLS, VNet  │           │  AcrPull (managed identity)
-                       ▼           ▼
+                    └──┬─────────┬─────────────┘
+                       │         │
+            TLS, VNet  │         │  AcrPull / secret ref (managed identity)
+                       ▼         ▼
         ┌───────────────────┐   ┌──────────────────┐
-        │ pg-tad4471          │   │ tadacr4471         │
-        │ Postgres Flexible   │   │ Container Registry │
-        │ Server (private,    │   │ (Standard, no admin │
-        │ VNet-integrated)    │   │  user)              │
+        │ pg-taddev4471      │   │ tadacr4471        │
+        │ Postgres Flexible  │   │ Container Registry│
+        │ Server (private,   │   │ (Standard, no      │
+        │ VNet-integrated)   │   │  admin user)        │
+        └───────────────────┘   └──────────────────┘
+                       │
+                       │  Storage Blob Data Contributor
+                       ▼
+        ┌───────────────────┐   ┌──────────────────┐
+        │ sttaddev4471       │   │ kv-taddev4471      │
+        │ Storage account    │   │ Key Vault          │
+        │ (reports container)│   │ (tad-database-url) │
         └───────────────────┘   └──────────────────┘
 
-   Both apps run in cae-tad-vnet (Container Apps environment,
-   WorkloadProfiles mode, VNet-integrated into rg-tad-manual-vnet)
-   and share one user-assigned managed identity, id-tad-app:
-     - AcrPull                        → tadacr4471
-     - Storage Blob Data Contributor  → sttad4471 (not yet wired into
-                                         the app; Blob upload path is a
-                                         later Phase 3 task)
-     - Key Vault Secrets User         → kv-tad4471 (fetches
-                                         tad-database-url at startup)
+   All resources live in one resource group, rg-tad-dev, fully
+   Terraform-managed (infra/terraform/envs/dev/). Both apps run in
+   cae-tad (Container Apps environment, VNet-integrated) and share one
+   user-assigned managed identity, id-tad-app, with all three role
+   assignments (AcrPull, Storage Blob Data Contributor, Key Vault
+   Secrets User) applied by the identity module.
 
-   rg-tad-manual-vnet (10.0.0.0/24 + 10.1.0.0/23):
+   rg-tad-dev-vnet (10.0.0.0/24 + 10.1.0.0/23):
      - subnet "default"       (10.0.0.0/24)  → delegated to Postgres
      - subnet "containerapps" (10.1.0.0/23)  → delegated to Container Apps
 ```
 
-**Why this shape, briefly** (see ADR 0008 for the full story): Postgres
-is private-access only, so Container Apps had to be VNet-integrated into
-the same VNet to reach it at all — this wasn't the original one-subnet
-plan, and cost a full session to get right (Express-mode environments,
-a `/23` subnet size requirement, a one-environment-per-region quota, a
-URL-unsafe password, and a Docker image missing its own migrations).
+**8 Terraform modules** (`infra/terraform/modules/`): `naming`,
+`network`, `registry`, `data` (Postgres), `identity`, `storage`,
+`key_vault`, `containerapp` — see ADR 0011 for the module-structure
+rationale, and ADR 0010 for the state-backend design.
 
-**Not yet wired up:** Blob upload path (raw TRF files → `sttad4471`) and
-Key Vault's original `postgres-admin-password` secret (superseded by
-`tad-database-url`, which holds the full connection string the app
-actually reads).
+**What changed from Phase 3's manual deployment**: the ACR
+(`tadacr4471`) was originally imported from the manual deployment to
+preserve its images, then recreated natively here after an incident
+deleted the whole manual resource group by accident — see ADR 0011's
+addendum. `rg-tad-manual` no longer exists; everything lives in
+`rg-tad-dev`. The `azurerm_container_app_environment` Terraform resource
+has no "Express mode" restriction at all (unlike the CLI/portal default
+that caused ADR 0008's entire saga) — setting `infrastructure_subnet_id`
+gets VNet integration and managed identity support by construction.
+
+**A real, honest limitation**: `terraform apply` is not yet a true
+zero-manual-steps rebuild. `terraform destroy` removes the container
+registry along with everything else, so a rebuilt environment needs its
+images rebuilt and pushed by hand before the Container Apps can start —
+confirmed by a real timed destroy/rebuild test (destroy: 26m 8s; apply:
+~1 minute once images existed). Closing this gap is Phase 5's job (CI
+building and pushing images as part of the pipeline), not a workaround
+added here.
